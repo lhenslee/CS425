@@ -2,29 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-Read data from auto-mpg.data into dataframe.
-Do mean imputation on horsepower.
-Separate data to training, validation, and test sets.
-"""
-data = pd.read_csv('auto-mpg.data', delim_whitespace=True,
-                   names=['mpg', 'cylinders', 'displacement',
-                          'horsepower', 'weight', 'acceleration',
-                          'model year', 'origin', 'car name'])
-hp_mean = 0
-hp_count = 0
-for hp in data['horsepower']:
-    if hp != '?':
-        hp_mean += float(hp)
-        hp_count += 1
-hp_mean /= hp_count
-data['horsepower'] = data['horsepower'].replace('?', hp_mean)
-data['horsepower'] = data['horsepower'].astype(float)
-size = len(data.index)
-training = data[0:int(size*.5)]
-validation = data[int(size*.5)+1:int(size*.8)]
-test = data[int(size*.8)+1:size]
-
 
 def mlr(parameters, x_values):
     """
@@ -69,6 +46,30 @@ def get_estimates(df, parameters, x_variables):
             x_vals.append(row[1][var])
         estimates.append(mlr(parameters, x_vals))
     return estimates
+
+
+"""
+Read data from auto-mpg.data into dataframe.
+Do mean imputation on horsepower.
+Separate data to training, validation, and test sets.
+"""
+data = pd.read_csv('auto-mpg.data', delim_whitespace=True,
+                   names=['mpg', 'cylinders', 'displacement',
+                          'horsepower', 'weight', 'acceleration',
+                          'model year', 'origin', 'car name'])
+hp_mean = 0
+hp_count = 0
+for hp in data['horsepower']:
+    if hp != '?':
+        hp_mean += float(hp)
+        hp_count += 1
+hp_mean /= hp_count
+data['horsepower'] = data['horsepower'].replace('?', hp_mean)
+data['horsepower'] = data['horsepower'].astype(float)
+size = len(data.index)
+training = data[0:int(size*.5)]
+validation = data[int(size*.5)+1:int(size*.8)]
+test = data[int(size*.8)+1:size]
 
 
 x_vars = ['cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
