@@ -17,7 +17,7 @@ def mlr(parameters, x_values):
     return result
 
 
-def get_parameters(data_set, x_variables):
+def get_parameters(data_set, x_variables, target='mpg'):
     """
     Find the parameters for multivariate linear/polynomial regression with the given
     data_set using the x_variables.
@@ -30,7 +30,7 @@ def get_parameters(data_set, x_variables):
         rand_var[var] = data_set[var]
     rand_var = rand_var.to_numpy()
     rand_var = np.insert(rand_var, 0, 1, axis=1)
-    results = data_set['mpg'].to_numpy()
+    results = data_set[target].to_numpy()
     parameters = np.matmul(np.transpose(rand_var), rand_var)
     parameters = np.linalg.inv(parameters)
     parameters = np.matmul(parameters, np.transpose(rand_var))
@@ -50,21 +50,28 @@ def get_estimates(df, parameters, x_variables):
 
 """
 Read data from auto-mpg.data into dataframe.
-Do mean imputation on horsepower.
+Do multivariate linear regression imputation on horsepower.
 Separate data to training, validation, and test sets.
 """
 data = pd.read_csv('auto-mpg.data', delim_whitespace=True,
                    names=['mpg', 'cylinders', 'displacement',
                           'horsepower', 'weight', 'acceleration',
                           'model year', 'origin', 'car name'])
-hp_mean = 0
-hp_count = 0
-for hp in data['horsepower']:
-    if hp != '?':
-        hp_mean += float(hp)
-        hp_count += 1
-hp_mean /= hp_count
-data['horsepower'] = data['horsepower'].replace('?', hp_mean)
+hp_null = []
+for row in data.iterrows():
+	if row[1]['horsepower'] == '?':
+		hp_null.append(row[0])
+data1 = data.drop(hp_null)
+x_vars = ['mpg', 'cylinders', 'displacement', 'weight', 'acceleration', 'model year',
+		   'origin']
+data1['horsepower'] = data1['horsepower'].astype(float)
+hp_pars = get_parameters(data1, x_vars, 'horsepower')
+for row in data.iterrows():
+	if row[1]['horsepower'] == '?':
+		x_vals = [1, row[1]['mpg'], row[1]['cylinders'], row[1]['displacement'],
+			      row[1]['weight'], row[1]['acceleration'], row[1]['model year'],
+				  row[1]['origin']]
+		data.loc[row[0], 'horsepower'] = mlr(hp_pars, x_vals)
 data['horsepower'] = data['horsepower'].astype(float)
 size = len(data.index)
 training = data[0:int(size*.5)]
