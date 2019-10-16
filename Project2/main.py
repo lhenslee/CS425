@@ -8,7 +8,7 @@ def linear_regression(x1, x2):
     Get the w vector for the regression of x1 to predict x2
     :param x1: A column of the data
     :param x2: A column of the result data
-    :return: A function that takes an x value
+    :return: A function that maps an x value to its linear regressor
     """
     tmp = pd.concat([x1, x2], axis=1).dropna().astype(float)
     A = np.array([[len(tmp.index), tmp[tmp.columns[0]].sum()],
@@ -41,18 +41,27 @@ def dollar_to_float(x):
 
 
 def make_clean(x):
-    if type(x) is float or type(x) is int:
-        return x
-    if x == '-':
-        return np.nan
-    if ',' in str(x):
-        return str(x).replace(',', '')
+    try:
+        return float(x)
+    except Exception as e:
+        if type(x) is float or type(x) is int:
+            return x
+        if x == '-':
+            return np.nan
+        if ',' in str(x):
+            return str(x).replace(',', '')
 
 
-def get_best_corr(df, col):
+def get_best_corr(corr, col):
+    """
+    Find the index that correlates most to col in the corr matrix.
+    :param corr: A correlation df
+    :param col: The column to find max correlation to
+    :return: The string that represents the most correlating input
+    """
     max_corr = 0
     best_corr = str()
-    for index, row in df.corr().iterrows():
+    for index, row in corr.iterrows():
         if abs(row[col]) > max_corr and index != col:
             max_corr = abs(row[col])
             best_corr = index
@@ -60,18 +69,26 @@ def get_best_corr(df, col):
 
 
 def fill_na(df):
+    """
+    Fill the null values with linear regression on the highest correlated
+    value.
+    :param df: The df with null values
+    :return: The df with filled in null values
+    """
+    corr = df[df.columns[2:]].astype(float).corr()
     for col in df.columns[2:]:
-        best_corr = get_best_corr(df, col)
-        if best_corr != '':
-            func = linear_regression(df[best_corr], df[col])
-            for index, row in df.iterrows():
-                if pd.isna(row[col]):
-                    df.loc[index, col] = func(row[best_corr])
-        '''else:
-            for index, row in df.iterrows():
-                if pd.isna(row[col]):
-                    df.loc[index, col] = df[col].mean()'''
-    print(df['Med School Res $'])
+        best_corr = get_best_corr(corr, col)
+        func = linear_regression(df[best_corr], df[col])
+        for index, row in df.iterrows():
+            if pd.isna(row[col]):
+                replacement = func(row[best_corr])
+                df.loc[index, col] = func(row[best_corr])
+                while pd.isna(replacement):
+                    best_corr = get_best_corr(corr.drop(best_corr, axis=0), col)
+                    func = linear_regression(df[best_corr], df[col])
+                    replacement = func(row[best_corr])
+                    df.loc[index, col] = replacement
+    return df
 
 
 def get_clean_data():
@@ -82,8 +99,7 @@ def get_clean_data():
         df.loc[:, col] = df[col].apply(make_clean)
         if '$' in str(df[col][0]) or df[col][0] is None:
             df.loc[:, col] = df[col].apply(dollar_to_float)
-        df.loc[:, col] = df[col].astype(float)
-    fill_na(df)
+    df = fill_na(df)
     return df
 
 
