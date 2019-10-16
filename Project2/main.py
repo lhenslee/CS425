@@ -7,7 +7,7 @@ def linear_regression(x1, x2):
     """
     Get the w vector for the regression of x1 to predict x2
     :param x1: A column of the data
-    :param x2: A column of the data
+    :param x2: A column of the result data
     :return: A function that takes an x value
     """
     tmp = pd.concat([x1, x2], axis=1).dropna().astype(float)
@@ -49,33 +49,50 @@ def make_clean(x):
         return str(x).replace(',', '')
 
 
+def get_best_corr(df, col):
+    max_corr = 0
+    best_corr = str()
+    for index, row in df.corr().iterrows():
+        if abs(row[col]) > max_corr and index != col:
+            max_corr = abs(row[col])
+            best_corr = index
+    return best_corr
+
+
+def fill_na(df):
+    for col in df.columns[2:]:
+        best_corr = get_best_corr(df, col)
+        if best_corr != '':
+            func = linear_regression(df[best_corr], df[col])
+            for index, row in df.iterrows():
+                if pd.isna(row[col]):
+                    df.loc[index, col] = func(row[best_corr])
+        '''else:
+            for index, row in df.iterrows():
+                if pd.isna(row[col]):
+                    df.loc[index, col] = df[col].mean()'''
+    print(df['Med School Res $'])
+
+
 def get_clean_data():
     df = pd.read_csv('UTK-peers.csv')[0:57].drop('HBC', axis=1)
     df.loc[:, '2014 Med School'] = df['2014 Med School'].apply(make_discrete)
     df.loc[:, 'Vet School'] = df['Vet School'].apply(make_discrete)
-    '''dollar_columns = ['Total E&G Expend', 'E&G / St. FTE', 'State Approp Rev',
-                      'Tuition/Fee Rev ', 'Endowment', 'Total Research Expenditures ($000)',
-                      'Total Expend', 'Total Revenue', 'Enowment / St. FTE',
-                      'Total Research Exp - Med School Exp ($000)',
-                      '(State/ Tuit)/ St. FTE', 'Med School Res $',
-                      'Academic Support Expenditures', 'Student Services Expenditures',
-                      'Endowment Figure', 'Endowment per Student FTE']
-    for col in dollar_columns:
-        df.loc[:, col] = df[col].apply(dollar_to_float)'''
     for col in df.columns[2:]:
         df.loc[:, col] = df[col].apply(make_clean)
         if '$' in str(df[col][0]) or df[col][0] is None:
             df.loc[:, col] = df[col].apply(dollar_to_float)
         df.loc[:, col] = df[col].astype(float)
-    print(df.head())
+    fill_na(df)
     return df
 
 
 data = get_clean_data()
-'''func = linear_regression(df[df.columns[6]], df['% UG Pell Grants'])
+data.to_csv('clean.csv')
+'''func = linear_regression(data['Med School Res $'], best_corr)
 print(func(3))
-df = df.dropna()
-plt.scatter(df[df.columns[6]], df['% UG Pell Grants'])
-plt.plot(df[df.columns[6]], df[df.columns[6]].apply(func))
+#data = data.dropna()
+plt.scatter(data['Med School Res $'], best_corr)
+plt.plot(data['Med School Res $'], data['Med School Res $'].apply(func))
 plt.show()'''
 
