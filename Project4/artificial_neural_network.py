@@ -1,5 +1,6 @@
 from random import random
 from math import exp
+from math import sqrt
 import matplotlib.pyplot as plt
 
 
@@ -21,6 +22,13 @@ def transfer(activation):
     return 1.0 / (1.0 + exp(-activation))
 
 
+def sub_mag(v1, v2):
+    add = 0
+    for a, b in zip(v1, v2):
+        add += (a-b)**2
+    return sqrt(add)
+
+
 class ANN:
     x_train = None
     x_test = None
@@ -29,7 +37,7 @@ class ANN:
     last_e_rate = None
 
     def __init__(self, df, d=None, K=2):
-        self.df = df
+        self.df = df.sample(frac=1).reset_index(drop=True)
         if d is None:
             d = len(df.columns)-1
         self.d = d
@@ -37,7 +45,6 @@ class ANN:
         self.attributes = df.columns[0:d]
         self.normalize()
         self.split_test()
-        #self.d_reduce(2)
         self.initialize_network()
 
     def normalize(self, df=None):
@@ -143,10 +150,13 @@ class ANN:
 
     def train_network(self, train, l_rate, n_epoch, f_prop):
         n_outputs = self.K
-        epoch_axis = [i for i in range(n_epoch)]
+        epoch_axis = []
         train_error_axis = []
+        last_err = None
+        same_err_cnt = 0
         for epoch in range(n_epoch):
             sum_error = 0
+            epoch_axis.append(epoch)
             for i, row in train.iterrows():
                 outputs = f_prop(row.values)
                 expected = [0 for i in range(n_outputs)]
@@ -154,26 +164,84 @@ class ANN:
                 sum_error += sum([(expected[i]-outputs[i])**2 for i in range(len(expected))])
                 self.backward_propagate_error(expected)
                 self.update_weights(row, l_rate)
-            print('epoch=%d, learning rate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
+            #print('epoch=%d, learning rate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
             train_error_axis.append(sum_error)
+            last_8_avg = sum(train_error_axis[-8:])/8
+            if sum_error > last_8_avg and len(train_error_axis) > 8:
+                return epoch_axis, train_error_axis
+            if sum_error == last_err:
+                same_err_cnt += 1
+            else:
+                same_err_cnt = 0
+            last_err = sum_error
+            if same_err_cnt == 5 or sum_error == .09:
+                return epoch_axis, train_error_axis
         return epoch_axis, train_error_axis
 
     def d_reduce(self, size):
-        corr = self.df.corr()
-        top_corr = ['spam']
-        last_del = 'spam'
-        corr = corr.drop(last_del, axis=0)
+        # Initialize M to random x^t from X
+        X = self.df.loc[:, self.df.columns[:self.d]]
+        M = []
+        B = []
         for i in range(size):
-            if abs(corr['spam'].min()) > corr['spam'].max():
-                last_del = corr['spam'].idxmin()
-                corr = corr.drop(last_del, axis=0)
-            else:
-                last_del = corr['spam'].idxmax()
-                corr = corr.drop(last_del, axis=0)
-            top_corr.insert(0, last_del)
-        self.df = self.df.loc[:, top_corr]
-        self.d = size+1
+            m = random()*len(self.df)
+            M.append(X.iloc[[m]].values[0])
 
-    def predict(self, row):
-        outputs = self.forward_propagate(row)
+        # Initialize book keeping
+        flag = True
+        oldM = M
+
+        while flag:
+            oldM = M
+            B = M
+
+            for t, row in X.iterrows():
+                x = row.values
+                min_mag = sub_mag(x, M[0])
+                for i in range(size):
+                    print(M[i])
+                    if sub_mag(x, M[i]) < min_mag:
+                        min_mag = sub_mag(x, M[i])
+                if min_mag == sub_mag(x, M[i]):
+                    B[i] = 1
+                else:
+                    B[i] = 0
+            for i in range(size):
+                add = 0
+                for t, row in X.iterrows():
+                    x = row.values
+                    add += B[i]*x
+                add2 = 0
+                for t, row in X.iterrows():
+                    x = row.values
+                    add2 += B[i]
+                M[i] = add/add2
+            if oldM == M:
+                flag = False
+
+
+    def predict(self, row, p_func):
+        outputs = p_func(row)
         return outputs.index(max(outputs))
+
+    def plot_set(self, data, p_func):
+        x_axis = [i for i in range(len(self.x_test))]
+        predictions = []
+        c_mat = [[0, 0], [0, 0]]
+        for i, row in data.iterrows():
+            prediction = self.predict(row.values, p_func)
+            predictions.append(prediction)
+            if prediction == row.values[-1] and prediction == 0:
+                c_mat[0][0] += 1
+            elif prediction != row.values[-1] and prediction == 0:
+                c_mat[0][1] += 1
+            elif prediction != row.values[-1] and prediction == 1:
+                c_mat[1][0] += 1
+            else:
+                c_mat[1][1] += 1
+        print('Confusion Matrix:')
+        print(c_mat[0][0], c_mat[1][0])
+        print(c_mat[0][1], c_mat[1][1])
+        acc = (c_mat[0][0]+c_mat[1][1])/(c_mat[0][0]+c_mat[1][0]+c_mat[0][1]+c_mat[1][1])
+        print('Accuracy:', acc)
+        return x_axis, predictions
