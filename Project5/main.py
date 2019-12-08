@@ -4,7 +4,7 @@ import sys
 
 
 # Run a report for each set of data
-for i in range(1):
+for i in range(3):
     data = DataSet(i)
     svc = SVC(data)
     svc.fit_clf()

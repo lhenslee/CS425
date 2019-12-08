@@ -15,7 +15,6 @@ class SVC:
         self.y_train = data.y_train
         self.X_test = data.X_test
         self.y_test = data.y_test
-        self.cv = data.cv
 
     def fit_clf(self):
         # Perform a course grid search to find the best penalty and kernel scale
@@ -23,7 +22,7 @@ class SVC:
             {'kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 'C': [1, 10, 100, 1000]}
         ]
         clf = self.clf
-        self.clf = GridSearchCV(clf, param_grid, cv=(), iid=False)
+        self.clf = GridSearchCV(clf, param_grid, cv=5, iid=False)
         self.clf.fit(self.X_train, self.y_train)
         # Perform fine grid search with the best penalty and kernel scale
         param_grid = {
