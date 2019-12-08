@@ -1,7 +1,7 @@
 from sklearn import svm
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import GridSearchCV
-import matplotlib.pyplot as plt
+import pandas as pd
 
 
 class SVC:
@@ -27,13 +27,16 @@ class SVC:
         # Perform fine grid search with the best penalty and kernel scale
         param_grid = {
             'C': [self.clf.best_params_['C']], 'kernel': [self.clf.best_params_['kernel']],
-            'degree': [2, 3, 4, 5], 'gamma': ['auto', 'scale', .001, .0001],
-            'coef0': [0, .5, 1], 'shrinking': [True, False], 'probability': [True, False],
-            'decision_function_shape': ['ovo', 'ovr'],
+            'gamma': ['auto', 'scale', .001, .0001], 'shrinking': [True, False],
+            'probability': [True, False], 'decision_function_shape': ['ovo', 'ovr'],
         }
+        if self.clf.best_params_['kernel'] == 'poly':
+            param_grid['degree'] = ['2, 3, 4, 5']
+        if self.clf.best_params_['kernel'] == 'poly' or self.clf.best_params_['kernel'] == 'sigmoid':
+            param_grid['coef0'] = 0, .5, 1
         self.clf = GridSearchCV(clf, param_grid, cv=5, iid=False)
         self.clf.fit(self.X_train, self.y_train)
-        print(self.clf.best_params_)
+        print('Best Parameters', self.clf.best_params_)
 
     def report_c_mat(self, set='validation'):
         if set == 'training':
@@ -50,8 +53,8 @@ class SVC:
             correct += c_mat[i][i]
             for j in range(len(c_mat[i])):
                 total += c_mat[i][j]
-        print('Report for', set, 'set on', self.problem_names[self.problem], 'data.')
-        print("Confusion Matrix:\n", c_mat)
+        print('Confusion matrix for', set, 'set on', self.problem_names[self.problem], 'data.')
+        print(c_mat)
         print('Accuracy:', correct/total)
 
 
